@@ -6,7 +6,7 @@ from tinydb import TinyDB, Query
 
 load_dotenv()
 
-db = TinyDB('db.json')
+db = TinyDB('database.json')
 
 def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text('Welcome to the Quiz Bot! Use /quiz to start a quiz.')
