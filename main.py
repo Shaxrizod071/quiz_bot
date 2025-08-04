@@ -211,6 +211,7 @@ def main() -> None:
 
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("quiz", quiz))
+    dispatcher.add_handler(CallbackQueryHandler(answer, pattern="^[A-D]$"))
     dispatcher.add_handler(CallbackQueryHandler(handle_quiz_selection, pattern="Quiz"))
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, answer))
 
