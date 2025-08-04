@@ -15,6 +15,7 @@ load_dotenv()
 
 db = TinyDB("database.json")
 
+user_data={}
 
 def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text("Welcome to the Quiz Bot! Use /quiz to start a quiz.")
@@ -52,6 +53,22 @@ data = [
                 "D": "6",
                 "correct_answer": "B",
             },
+            {
+                "question": "What is 10 - 2?",
+                "A": "3",
+                "B": "4",
+                "C": "5",
+                "D": "8",
+                "correct_answer": "D",
+            },
+            {
+                "question": "What is 5 + 2?",
+                "A": "3",
+                "B": "7",
+                "C": "5",
+                "D": "6",
+                "correct_answer": "B",
+            },
         ],
     }
 ]
@@ -69,6 +86,7 @@ def handle_quiz_selection(update: Update, context: CallbackContext) -> None:
 
     update.callback_query.answer()
     query = update.callback_query
+    user_id = query.from_user.id
     quiz_name = query.data
 
     variant = {}
@@ -77,6 +95,14 @@ def handle_quiz_selection(update: Update, context: CallbackContext) -> None:
         if quiz["quiz_name"] == quiz_name:
             variant = quiz
             break
+    User =Query()
+    db.upsert({
+    'user_id': user_id,
+    'quiz_name':quiz_name,
+    'index': 0,
+    'correct':0,
+    'wrong':0
+ },User.user_id==user_id)
 
     # Fetch the quiz from the database
     text = f"""You have selected: {quiz_name}. Let's start the quiz!
@@ -103,8 +129,76 @@ def answer(update: Update, context: CallbackContext) -> None:
     This function will check the user's answer against the correct answer
     and gives next question or end the quiz.
     """
-    print("answer")
+    query = update.callback_query
+    user_id = query.from_user.id
+    tanlangan_javob = query.data
+    User = Query()
+    user_data = db.search(User.user_id == user_id)
+    print(user_data)
+    if not user_data:
+        query.answer("Please start a quiz using /quiz.")
+        return
+    user = user_data[0]
+    quiz_name = user['quiz_name']
+    question_index = user['index']
+    correct_count = user['correct']
+    wrong_count = user['wrong']
+    ball = correct_count*5
+    shaxa_quiz = next((q for q in data if q['quiz_name'] == quiz_name), None)
+    print(shaxa_quiz)
+    if not shaxa_quiz:
+        query.edit_message_text("Quiz not found.")
+        return
 
+    questions = shaxa_quiz['questions']
+    correct_answer = questions[question_index]['correct_answer']
+
+    
+    if tanlangan_javob == correct_answer:
+        correct_count += 1
+        query.answer(f"✅ Correct! Correct answer was: {correct_count}")
+    else:
+        wrong_count += 1
+        query.answer(f"❌ Wrong! Correct answer was: {wrong_count}")
+
+    
+    if question_index + 1 >= len(questions):
+        text=f"""🎉 Quiz finished! Use /quiz to try again."
+        "✅ Togri: {correct_count}\n"
+        "❌ Notogri: {wrong_count}\n"
+        "🎯 Umumiy ball: {ball}\n "
+        """
+        query.edit_message_text(text)
+        db.remove(User.user_id == user_id)
+        return
+    question_index+=1
+    db.update({
+        "index": question_index,
+        "correct": correct_count,
+        "wrong": wrong_count,
+        "ball":ball
+    }, User.user_id==user_id
+)
+    db.update({'index': question_index,'correct':correct_count,'wrong':wrong_count,"ball":ball}, User.user_id == user_id)
+
+    next_question = questions[question_index]
+    text = f"""Question: {next_question['question']}
+A: {next_question['A']}
+B: {next_question['B']}
+C: {next_question['C']}
+D: {next_question['D']}
+Please choose an option below.
+"""
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("A", callback_data="A"),
+            InlineKeyboardButton("B", callback_data="B"),
+            InlineKeyboardButton("C", callback_data="C"),
+            InlineKeyboardButton("D", callback_data="D"),
+        ]
+    ])
+    context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=keyboard)
+    
 
 def main() -> None:
     token = os.getenv("TOKEN")
